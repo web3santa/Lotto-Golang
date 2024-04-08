@@ -3,8 +3,11 @@ package main
 import (
 	"fmt"
 	"math/rand"
+	"net/http"
 	"sort"
 	"strconv"
+
+	"github.com/gin-gonic/gin"
 )
 
 type Lotto struct {
@@ -16,11 +19,47 @@ type Lotto struct {
 	num6 int
 }
 
+type myForm struct {
+	Ticket int `form:"ticket"`
+}
+
+type PageData struct {
+	Spend  string
+	Prize  string
+	Profit string
+}
+
+var data PageData
+
 func main() {
 	// Seed를 설정하여 매번 다른 난수가 생성되도록 함
-	var ticket int
-	fmt.Println("Lotto How many ticket do you want to buy?")
-	fmt.Scan(&ticket)
+
+	router := gin.Default()
+	router.LoadHTMLGlob("templates/*")
+	//router.LoadHTMLFiles("templates/template1.html", "templates/template2.html")
+	router.GET("/", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"title":  "Main website",
+			"spend":  data.Spend,
+			"prize":  data.Prize,
+			"profit": data.Profit,
+		})
+	})
+
+	router.POST("/", func(c *gin.Context) {
+		var fakeForm myForm
+		c.ShouldBind(&fakeForm)
+		// c.JSON(200, gin.H{"ticket": fakeForm.Ticket})
+		runLotti(fakeForm.Ticket)
+		c.Redirect(http.StatusFound, "/")
+
+	})
+
+	router.Run(":8080")
+
+}
+
+func runLotti(ticket int) {
 
 	userTickets := PickLottoNumber(ticket)
 	var totalPrice int
@@ -46,13 +85,16 @@ func main() {
 		}
 	}
 	var totalSpend = ticket * 1000
-	fmt.Println("Total Spend: ", totalSpend)
-	fmt.Println("Your total Price is : ", totalPrice)
+	formatSpend := formatNumber(totalSpend)
+	fmt.Println("Total Spend: ", formatSpend)
+	formattPrize := formatNumber(totalPrice)
+	fmt.Println("Your total Price is : ", formattPrize)
 
 	total := totalPrice - totalSpend
 	formattedNum := formatNumber(total)
 
 	fmt.Println("your Profit is: ", formattedNum)
+	data = PageData{Prize: formattPrize, Spend: formatSpend, Profit: formattedNum}
 
 }
 func formatNumber(num int) string {
